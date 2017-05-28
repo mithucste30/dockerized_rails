@@ -1,0 +1,82 @@
+version: '2.1'
+
+volumes:
+  bundler:
+  redisdb:
+  mongodb:
+  assets:
+  neo4jdb:
+
+services:
+  neo4j:
+    image: neo4j:3.2
+    ports:
+     - 7474
+     - 7473
+     - 7687
+    environment:
+      NEO4J_AUTH: neo4j/123456
+    volumes:
+      - neo4jdb:/data
+#    healthcheck:
+#      test: ["CMD", "curl", "-f", "http://localhost:7474"]
+#      interval: 20s
+#      timeout: 5s
+#      retries: 3
+
+  mongo:
+    image: tutum/mongodb:3.0
+    volumes:
+     - mongodb:/data/db
+    ports:
+     - 27017:27017
+     - 28017:28017
+    environment:
+      MONGODB_USER: epistocracy
+      MONGODB_PASS: 123456
+      MONGODB_DATABASE: epistocracy_development
+
+  redis:
+    image: redis:3.0.7
+    volumes:
+      - redisdb:/data
+#      - vendor/docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - 6379
+
+
+  app:
+    build:
+      context: .
+      dockerfile: ./vendor/docker/app/production/Dockerfile
+    depends_on:
+      neo4j:
+        condition: service_started
+    volumes:
+      - bundler:/var/www/dockerized_rails/vendor/bundle
+      - assets:/var/www/dockerized_rails/public/assets
+    links:
+     - neo4j
+     - mongo
+     - redis
+    ports:
+     - 3000
+    environment:
+      - mongodb_host=mongo
+      - redis_host=redis
+      - redis_port=6379
+      - neo4j_host=neo4j
+
+  web:
+    build:
+      context: .
+      dockerfile: vendor/docker/web/Dockerfile
+    volumes:
+      - assets:/var/www/dockerized_rails/public/assets
+    depends_on:
+      app:
+        condition: service_started
+    links:
+      - app
+    ports:
+     - 80:80

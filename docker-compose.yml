@@ -1,0 +1,57 @@
+version: '2'
+
+volumes:
+  bundler:
+  neo4jdb:
+  redisdb:
+  mongodb:
+
+services:
+  neo4j:
+    image: neo4j:3.2
+    volumes:
+     - neo4jdb:/data
+    ports:
+     - 7474
+     - 7473
+     - 7687
+    environment:
+      NEO4J_AUTH: neo4j/123456
+
+  mongo:
+    image: tutum/mongodb:3.0
+    volumes:
+     - mongodb:/data/db
+    ports:
+     - 27017:27017
+     - 28017:28017
+    environment:
+      MONGODB_USER: epistocracy
+      MONGODB_PASS: 123456
+      MONGODB_DATABASE: epistocracy_development
+
+  redis:
+    image: redis:3.0.7
+    volumes:
+      - redisdb:/data
+#      - vendor/docker/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - 6379
+
+
+  app:
+    build: vendor/docker/app/development
+    volumes:
+     - $PWD:/usr/src/app
+     - bundler:/usr/src/app/vendor/bundle
+    links:
+     - neo4j
+     - mongo
+     - redis
+    ports:
+     - 3000:3000
+    environment:
+      - mongodb_host=mongo
+      - redis_host=redis
+      - redis_port=6379
+      - neo4j_host=neo4j
